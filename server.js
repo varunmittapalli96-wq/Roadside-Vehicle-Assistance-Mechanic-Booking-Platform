@@ -1,7 +1,7 @@
 const path = require('path');
 
 // Set default fallback environment variables for Render deployment if not already set
-process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://varunmittapalli2005_db_user:nYHH9Kt0RXtj6zAV@cluster0.tmhyjqq.mongodb.net/?appName=Cluster0';
+process.env.MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb+srv://varunmittapalli2005_db_user:nYHH9Kt0RXtj6zAV@cluster0.tmhyjqq.mongodb.net/?appName=Cluster0';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'roadside_aaa_dev_secret_key_2026';
 
 // Resolve the absolute path of the backend entry point
