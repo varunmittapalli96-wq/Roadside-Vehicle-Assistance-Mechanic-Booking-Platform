@@ -79,15 +79,6 @@ export default function LoginPage() {
             Register
           </Link>
         </p>
-
-        <div className="mt-8 card bg-orange-50 border-orange-100">
-          <p className="text-sm font-medium text-orange-800 mb-2">Demo Accounts</p>
-          <div className="text-xs text-orange-700 space-y-1">
-            <p>User: user@roadside.com / user123</p>
-            <p>Mechanic: rajesh@roadside.com / mech123</p>
-            <p>Admin: admin@roadside.com / admin123</p>
-          </div>
-        </div>
       </div>
     </div>
   );
