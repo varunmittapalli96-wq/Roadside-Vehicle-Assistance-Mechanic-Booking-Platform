@@ -20,6 +20,10 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'Roadside Assistance API' });
 });
 
+app.get('/', (_req, res) => {
+  res.send('<h1>Roadside Assistance API is running successfully!</h1>');
+});
+
 app.use((err, _req, res, _next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Internal server error' });
