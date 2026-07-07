@@ -1,0 +1,11 @@
+{
+  "name": "roadside-assistance-root",
+  "version": "1.0.0",
+  "description": "Root wrapper for deploying backend on Render",
+  "main": "server.js",
+  "scripts": {
+    "build": "npm install --prefix backend",
+    "postinstall": "npm install --prefix backend",
+    "start": "node server.js"
+  }
+}

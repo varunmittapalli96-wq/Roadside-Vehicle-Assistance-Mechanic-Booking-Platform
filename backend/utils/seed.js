@@ -5,7 +5,7 @@ const Vehicle = require('../models/Vehicle');
 const ServiceRequest = require('../models/ServiceRequest');
 
 const connectDB = async () => {
-  await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/roadside_assistance');
+  await mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://varunmittapalli2005_db_user:nYHH9Kt0RXtj6zAV@cluster0.tmhyjqq.mongodb.net/?appName=Cluster0');
 };
 
 const seed = async () => {
