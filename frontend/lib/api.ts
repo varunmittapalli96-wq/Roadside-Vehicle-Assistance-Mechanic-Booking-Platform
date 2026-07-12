@@ -104,6 +104,11 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
   getMe: () => request<User>('/auth/me'),
+  updateProfile: (body: Partial<User>) =>
+    request<User>('/auth/me', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
 
   getVehicles: () => request<Vehicle[]>('/vehicles'),
   addVehicle: (body: Partial<Vehicle>) =>

@@ -52,4 +52,27 @@ router.get('/me', require('../middleware/auth').protect, (req, res) => {
   res.json(req.user);
 });
 
+router.put('/me', require('../middleware/auth').protect, async (req, res) => {
+  try {
+    const { name, phone, location } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    if (name) user.name = name;
+    if (phone) user.phone = phone;
+    if (location) {
+      user.location = {
+        type: 'Point',
+        coordinates: location.coordinates || [77.5946, 12.9716],
+        address: location.address || '',
+      };
+    }
+    await user.save();
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;
