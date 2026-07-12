@@ -369,7 +369,7 @@ export default function HistoryPage() {
                                 </div>
                                 <div>
                                   <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Assigned Mechanic</span>
-                                  <h5 className="text-sm font-black text-slate-900 leading-tight">{mechanic.businessName || mechanic.name}</h5>
+                                  <h5 className="text-sm font-black text-slate-900 leading-tight">{mechanic.profile?.businessName || mechanic.name}</h5>
                                   <p className="text-[10px] text-[#FF6B00] font-black mt-1">✓ ASE Certified partner</p>
                                 </div>
                               </div>
