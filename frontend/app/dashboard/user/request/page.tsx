@@ -10,6 +10,7 @@ import { api, Vehicle, NearbyMechanic, SERVICE_LABELS } from '@/lib/api';
 import {
   MapPin,
   Navigation,
+  Compass,
   Star,
   Clock,
   Wrench,
