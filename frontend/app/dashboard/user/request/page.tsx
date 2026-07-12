@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
@@ -40,7 +40,7 @@ const navItems = [
   { label: 'Service History', href: '/dashboard/user/history' },
 ];
 
-export default function RequestHelpPage() {
+function RequestHelpContent() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -597,6 +597,14 @@ export default function RequestHelpPage() {
 
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function RequestHelpPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <RequestHelpContent />
+    </Suspense>
   );
 }
 
