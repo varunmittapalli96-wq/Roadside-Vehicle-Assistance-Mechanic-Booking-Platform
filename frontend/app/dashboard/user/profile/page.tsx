@@ -59,7 +59,6 @@ export default function UserProfilePage() {
         name,
         phone,
         location: {
-          type: 'Point',
           coordinates: user?.location?.coordinates || [77.5946, 12.9716],
           address,
         },
