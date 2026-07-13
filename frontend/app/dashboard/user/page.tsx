@@ -342,7 +342,7 @@ export default function UserDashboard() {
                       </div>
                       <div className="grid grid-cols-2 gap-y-2 border-t border-slate-100/60 pt-3 text-[10px] font-bold text-slate-400 uppercase tracking-wide">
                         <div>Model Year: <span className="text-slate-800">{v.year}</span></div>
-                        <div>Fuel: <span className="text-slate-800">{v.fuelType}</span></div>
+                        <div>Fuel: <span className="text-slate-800 capitalize">{v.fuelType}</span></div>
                         {v.color && <div>Color: <span className="text-slate-800">{v.color}</span></div>}
                         <div>Status: <span className="text-emerald-650">Registered</span></div>
                       </div>

@@ -42,7 +42,7 @@ const emptyForm = {
   year: new Date().getFullYear(),
   licensePlate: '',
   color: '',
-  fuelType: 'Petrol',
+  fuelType: 'petrol',
   transmission: 'Automatic',
   vin: '',
   odometer: '12,500 km',
@@ -66,6 +66,7 @@ export default function VehiclesPage() {
   const [form, setForm] = useState(emptyForm);
   const [editId, setEditId] = useState<string | null>(null);
   const [modalStep, setModalStep] = useState(1);
+  const [error, setError] = useState('');
 
   // Expandable sections toggles
   const [expandedDocs, setExpandedDocs] = useState<Record<string, boolean>>({});
@@ -89,6 +90,7 @@ export default function VehiclesPage() {
     }
 
     setLoading(true);
+    setError('');
     try {
       if (editId) {
         await api.updateVehicle(editId, {
@@ -113,9 +115,11 @@ export default function VehiclesPage() {
       setEditId(null);
       setForm(emptyForm);
       setModalStep(1);
+      setError('');
       load();
     } catch (err) {
       console.error(err);
+      setError(err instanceof Error ? err.message : 'Failed to save vehicle');
       setLoading(false);
     }
   };
@@ -134,7 +138,7 @@ export default function VehiclesPage() {
       year: v.year,
       licensePlate: v.licensePlate,
       color: v.color || '',
-      fuelType: v.fuelType || 'Petrol',
+      fuelType: v.fuelType || 'petrol',
       transmission: 'Automatic',
       vin: `VIN-${v._id.slice(-8).toUpperCase()}`,
       odometer: '14,200 km',
@@ -142,6 +146,7 @@ export default function VehiclesPage() {
     setEditId(v._id);
     setModalStep(1);
     setShowModal(true);
+    setError('');
   };
 
   // Toggle helpers
@@ -188,7 +193,7 @@ export default function VehiclesPage() {
           
           <div className="flex items-center gap-3">
             <button
-              onClick={() => { setShowModal(true); setEditId(null); setForm(emptyForm); setModalStep(1); }}
+              onClick={() => { setShowModal(true); setEditId(null); setForm(emptyForm); setModalStep(1); setError(''); }}
               className="bg-[#FF6B00] hover:bg-[#e05e00] text-white font-extrabold h-12 px-6 rounded-xl flex items-center gap-1.5 text-xs transition shadow-md shadow-orange-500/10 hover:-translate-y-0.5"
             >
               <Plus className="w-4.5 h-4.5" /> Add Vehicle
@@ -351,7 +356,7 @@ export default function VehiclesPage() {
                     {/* Specifications grid list */}
                     <div className="grid grid-cols-2 gap-y-3.5 gap-x-2 text-xs font-bold text-slate-400 uppercase tracking-wide mb-6 pb-4 border-b border-slate-100/60">
                       <div>Year: <span className="text-slate-800">{v.year}</span></div>
-                      <div>Fuel: <span className="text-slate-800">{v.fuelType}</span></div>
+                      <div>Fuel: <span className="text-slate-800 capitalize">{v.fuelType}</span></div>
                       <div>Odometer: <span className="text-slate-800">12,450 km</span></div>
                       <div>Health: <span className="text-emerald-600">95% (Good)</span></div>
                     </div>
@@ -480,6 +485,12 @@ export default function VehiclesPage() {
                 Step {modalStep} of 3: {modalStep === 1 ? 'Details' : modalStep === 2 ? 'Upload Docs' : 'Review'}
               </p>
 
+              {error && (
+                <div className="bg-red-55 border border-red-200 text-red-700 px-4 py-3 rounded-2xl text-xs sm:text-sm font-semibold mb-4 animate-fadeIn">
+                  {error}
+                </div>
+              )}
+
               {/* Form submit handler */}
               <form onSubmit={handleSubmit} className="space-y-4">
                 
@@ -527,11 +538,11 @@ export default function VehiclesPage() {
                           value={form.fuelType}
                           onChange={(e) => setForm({ ...form, fuelType: e.target.value })}
                         >
-                          <option value="Petrol">Petrol</option>
-                          <option value="Diesel">Diesel</option>
-                          <option value="Electric">Electric</option>
-                          <option value="Hybrid">Hybrid</option>
-                          <option value="CNG">CNG</option>
+                          <option value="petrol">Petrol</option>
+                          <option value="diesel">Diesel</option>
+                          <option value="electric">Electric</option>
+                          <option value="hybrid">Hybrid</option>
+                          <option value="cng">CNG</option>
                         </select>
                       </div>
                     </div>
@@ -571,7 +582,7 @@ export default function VehiclesPage() {
                     <div className="flex justify-between"><span>Brand Manufacturer</span><span className="text-slate-900">{form.make}</span></div>
                     <div className="flex justify-between"><span>Model Line</span><span className="text-slate-900">{form.model}</span></div>
                     <div className="flex justify-between"><span>Model Year</span><span className="text-slate-900">{form.year}</span></div>
-                    <div className="flex justify-between"><span>Fuel Specification</span><span className="text-slate-900">{form.fuelType}</span></div>
+                    <div className="flex justify-between"><span>Fuel Specification</span><span className="text-slate-900 capitalize">{form.fuelType}</span></div>
                     <div className="flex justify-between"><span>Plate Number</span><span className="text-slate-900">{form.licensePlate}</span></div>
                   </div>
                 )}
@@ -581,7 +592,7 @@ export default function VehiclesPage() {
                   {modalStep > 1 && (
                     <button
                       type="button"
-                      onClick={() => setModalStep((prev) => prev - 1)}
+                      onClick={() => { setModalStep((prev) => prev - 1); setError(''); }}
                       className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-extrabold h-12 rounded-xl transition"
                     >
                       Back

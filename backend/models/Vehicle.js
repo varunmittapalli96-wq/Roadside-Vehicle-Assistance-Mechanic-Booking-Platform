@@ -8,7 +8,7 @@ const vehicleSchema = new mongoose.Schema(
     year: { type: Number, required: true },
     licensePlate: { type: String, required: true },
     color: String,
-    fuelType: { type: String, enum: ['petrol', 'diesel', 'electric', 'hybrid', 'cng'], default: 'petrol' },
+    fuelType: { type: String, enum: ['petrol', 'diesel', 'electric', 'hybrid', 'cng'], default: 'petrol', lowercase: true },
   },
   { timestamps: true }
 );
