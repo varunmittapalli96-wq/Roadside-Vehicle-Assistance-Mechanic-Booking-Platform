@@ -69,9 +69,9 @@ function RequestHelpContent() {
 
   // Service Details Data
   const services = [
-    { id: 'breakdown', title: 'Breakdown Repair', desc: 'On-site diagnostics and repair.', eta: '12 min', price: '₹399', icon: Wrench, popular: false },
-    { id: 'flat_tire', title: 'Flat Tire Repair', desc: 'Tire change using spare wheel.', eta: '8 min', price: '₹299', icon: CircleIcon, popular: true },
-    { id: 'battery_jump', title: 'Battery Jump Start', desc: 'Jump start or battery replace.', eta: '7 min', price: '₹199', icon: Battery, popular: false },
+    { id: 'breakdown_repair', title: 'Breakdown Repair', desc: 'On-site diagnostics and repair.', eta: '12 min', price: '₹399', icon: Wrench, popular: false },
+    { id: 'flat_tire_repair', title: 'Flat Tire Repair', desc: 'Tire change using spare wheel.', eta: '8 min', price: '₹299', icon: CircleIcon, popular: true },
+    { id: 'battery_jump_start', title: 'Battery Jump Start', desc: 'Jump start or battery replace.', eta: '7 min', price: '₹199', icon: Battery, popular: false },
     { id: 'fuel_delivery', title: 'Fuel Delivery', desc: '5L emergency fuel dispatch.', eta: '10 min', price: '₹149', icon: Fuel, popular: false },
     { id: 'towing', title: 'Vehicle Towing', desc: 'Secure tow to local garage.', eta: '15 min', price: '₹699', icon: Truck, popular: false },
     { id: 'lockout', title: 'Lockout Assist', desc: 'Secure vehicle unlocking.', eta: '9 min', price: '₹249', icon: Lock, popular: false },
@@ -401,7 +401,7 @@ function RequestHelpContent() {
                   <div>
                     <h4 className="text-xs font-black text-slate-900 leading-tight">AI Diagnostic Assist Recommend</h4>
                     <p className="text-xs text-slate-500 font-semibold leading-relaxed mt-1">
-                      {form.serviceType === 'battery_jump'
+                      {form.serviceType === 'battery_jump_start'
                         ? 'Suggested: Discharged starter battery replacement diagnostic. Estimated repair duration: 10 mins.'
                         : 'Suggested: Nearby towing platform dispatch matching your City make dimensions.'}
                     </p>

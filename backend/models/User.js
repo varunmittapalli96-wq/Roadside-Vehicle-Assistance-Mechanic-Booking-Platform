@@ -25,6 +25,7 @@ const userSchema = new mongoose.Schema(
         batteryJumpStart: { type: Number, default: 300 },
         flatTireRepair: { type: Number, default: 400 },
         fuelDelivery: { type: Number, default: 350 },
+        lockout: { type: Number, default: 450 },
       },
       rating: { type: Number, default: 0 },
       totalRatings: { type: Number, default: 0 },

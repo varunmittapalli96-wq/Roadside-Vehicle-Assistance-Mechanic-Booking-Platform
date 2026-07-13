@@ -180,6 +180,7 @@ export const SERVICE_LABELS: Record<string, string> = {
   battery_jump_start: 'Battery Jump-Start',
   flat_tire_repair: 'Flat Tire Repair',
   fuel_delivery: 'Fuel Delivery',
+  lockout: 'Lockout Assist',
 };
 
 export const STATUS_LABELS: Record<string, string> = {

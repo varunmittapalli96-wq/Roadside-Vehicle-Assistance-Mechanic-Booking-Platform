@@ -6,6 +6,7 @@ const SERVICE_TYPES = [
   'battery_jump_start',
   'flat_tire_repair',
   'fuel_delivery',
+  'lockout',
 ];
 
 const STATUS_FLOW = [

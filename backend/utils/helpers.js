@@ -23,6 +23,7 @@ function getPriceForService(mechanic, serviceType) {
     battery_jump_start: 'batteryJumpStart',
     flat_tire_repair: 'flatTireRepair',
     fuel_delivery: 'fuelDelivery',
+    lockout: 'lockout',
   };
   return mechanic.profile?.pricing?.[map[serviceType]] || 500;
 }

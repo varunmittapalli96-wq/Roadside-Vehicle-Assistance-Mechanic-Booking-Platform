@@ -50,11 +50,11 @@ export default function UserDashboard() {
   // Quick Action Array
   const quickActions = [
     { label: 'Request Tow Truck', icon: Truck, serviceType: 'towing' },
-    { label: 'Flat Tire Repair', icon: CircleIcon, serviceType: 'flat_tire' },
-    { label: 'Battery Jump Start', icon: Battery, serviceType: 'battery_jump' },
+    { label: 'Flat Tire Repair', icon: CircleIcon, serviceType: 'flat_tire_repair' },
+    { label: 'Battery Jump Start', icon: Battery, serviceType: 'battery_jump_start' },
     { label: 'Fuel Delivery', icon: Fuel, serviceType: 'fuel_delivery' },
     { label: 'Lockout Assist', icon: Lock, serviceType: 'lockout' },
-    { label: 'Engine Diagnosis', icon: Wrench, serviceType: 'breakdown' },
+    { label: 'Engine Diagnosis', icon: Wrench, serviceType: 'breakdown_repair' },
   ];
 
   // Date formatter helper
