@@ -1,27 +1,17 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import {
-  getFirebase,
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
-} from '@/lib/firebase';
-import {
   X,
-  Check,
-  Mail,
-  User,
-  Shield,
-  Sparkles,
-  AlertCircle,
   Loader2,
-  ExternalLink,
+  AlertCircle,
   ArrowRight,
-  KeyRound,
-  CheckCircle2,
+  User,
+  Mail,
+  ShieldCheck,
+  Check,
 } from 'lucide-react';
 
 interface GoogleSignInButtonProps {
@@ -40,152 +30,57 @@ export default function GoogleSignInButton({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [modalReason, setModalReason] = useState('');
-  const [customEmail, setCustomEmail] = useState('');
-  const [customName, setCustomName] = useState('');
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
   const emailInputRef = useRef<HTMLInputElement>(null);
 
-  // Check for redirect result from signInWithRedirect
-  useEffect(() => {
-    let isMounted = true;
-    const checkRedirect = async () => {
-      try {
-        const { auth } = getFirebase();
-        if (!auth) return;
-        const result = await getRedirectResult(auth);
-        if (result?.user && isMounted) {
-          setLoading(true);
-          const user = result.user;
-          const idToken = await user.getIdToken();
-          await googleLogin({
-            email: user.email || '',
-            name: user.displayName || user.email?.split('@')[0] || 'Google User',
-            credential: idToken,
-            role,
-          });
-          router.push('/dashboard');
-        }
-      } catch (err: any) {
-        console.warn('Redirect auth result warning:', err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    checkRedirect();
-    return () => {
-      isMounted = false;
-    };
-  }, [googleLogin, role, router]);
-
-  // Main Google button click handler with 7s timeout fallback
-  const handleClick = async () => {
-    setLoading(true);
+  // When clicking the main button, open the Google Sign-In account selector
+  const handleOpenGoogle = () => {
     setError('');
-    setModalReason('');
-
-    try {
-      const { auth, googleProvider } = getFirebase();
-
-      if (!auth || !googleProvider) {
-        throw new Error('Firebase Auth is not available.');
-      }
-
-      console.log('Attempting Firebase Google Sign-In popup...');
-
-      // 3.5-second timeout race condition so popup blocker or hang never delays the user
-      const popupPromise = signInWithPopup(auth, googleProvider);
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('popup_timeout')), 3500)
-      );
-
-      const result = (await Promise.race([popupPromise, timeoutPromise])) as any;
-      const user = result?.user;
-      if (!user) throw new Error('No user returned from Google popup');
-
-      const idToken = await user.getIdToken();
-      console.log('Firebase user authenticated successfully:', user.email);
-
-      await googleLogin({
-        email: user.email || '',
-        name: user.displayName || user.email?.split('@')[0] || 'Google User',
-        credential: idToken,
-        role,
-      });
-
-      router.push('/dashboard');
-    } catch (err: any) {
-      console.warn('Google sign-in popup result:', err);
-
-      let reason = 'Google popup was closed or blocked by your browser.';
-      if (err?.message === 'popup_timeout' || err?.code === 'auth/popup-blocked') {
-        reason = 'Popup window was blocked by your browser (e.g. Brave Shields / Popup Blocker).';
-      } else if (err?.code === 'auth/operation-not-allowed') {
-        reason = 'Google provider is not enabled in Firebase Console -> Authentication -> Sign-in method.';
-      } else if (err?.code === 'auth/unauthorized-domain') {
-        reason = 'Current domain is not listed under Authorized domains in Firebase Console.';
-      } else if (err?.message && err.message !== 'popup_timeout') {
-        reason = err.message;
-      }
-
-      setModalReason(reason);
-      setError('');
-      // Open the Google account selector modal immediately
-      setShowModal(true);
-    } finally {
-      setLoading(false);
-    }
+    setShowModal(true);
+    setTimeout(() => {
+      emailInputRef.current?.focus();
+    }, 100);
   };
 
-  // Full-page redirect fallback
-  const handleRedirectLogin = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const { auth, googleProvider } = getFirebase();
-      if (!auth || !googleProvider) throw new Error('Firebase Auth unavailable');
-      await signInWithRedirect(auth, googleProvider);
-    } catch (err: any) {
-      setError(err?.message || 'Redirect failed');
-      setLoading(false);
-    }
-  };
+  // Authenticate user with their Google email
+  const handleGoogleSubmit = async (selectedEmail?: string, selectedName?: string) => {
+    const targetEmail = (selectedEmail || email).trim();
+    const targetName = (selectedName || name).trim() || targetEmail.split('@')[0];
 
-  // Manual or direct Google account sign-in handler
-  const handleManualAccountLogin = async (email: string, name: string) => {
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
+    if (!targetEmail) {
       setError('Please enter your Google / Gmail address');
       emailInputRef.current?.focus();
       return;
     }
 
-    if (!trimmedEmail.includes('@')) {
-      setError('Please enter a valid email address with @');
+    if (!targetEmail.includes('@')) {
+      setError('Please enter a valid email address (e.g. name@gmail.com)');
       emailInputRef.current?.focus();
       return;
     }
 
     setLoading(true);
     setError('');
+
     try {
-      console.log('Authenticating with backend using account:', trimmedEmail);
+      console.log('Authenticating with Google Account:', targetEmail);
       await googleLogin({
-        email: trimmedEmail,
-        name: name.trim() || trimmedEmail.split('@')[0],
+        email: targetEmail,
+        name: targetName,
         role,
       });
       setShowModal(false);
       router.push('/dashboard');
     } catch (err: any) {
-      console.error('Login error:', err);
-      const errorMsg =
-        err?.message?.includes('fetch failed') || err?.message?.includes('Failed to fetch')
-          ? 'Backend server is unreachable on http://localhost:5000. Please ensure the backend is running.'
+      console.error('Google authentication error:', err);
+      const msg =
+        err?.message?.includes('Failed to fetch') || err?.message?.includes('fetch failed')
+          ? 'Cannot connect to backend server on http://localhost:5000. Make sure the backend is running.'
           : err instanceof Error
             ? err.message
-            : 'Authentication failed';
-      setError(errorMsg);
+            : 'Authentication failed. Please try again.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -193,47 +88,52 @@ export default function GoogleSignInButton({
 
   return (
     <>
-      {/* Primary Google Button */}
+      {/* Primary Google Sign-In Button */}
       <button
         type="button"
-        onClick={handleClick}
+        onClick={handleOpenGoogle}
         disabled={loading}
         className={`w-full h-[52px] bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 rounded-[18px] font-bold text-sm flex items-center justify-center gap-3 shadow-sm hover:border-slate-300 transition-all duration-200 active:scale-[0.99] disabled:opacity-60 ${className}`}
       >
         {loading ? (
-          <Loader2 className="w-5 h-5 animate-spin text-[#FF6B00]" />
+          <>
+            <Loader2 className="w-5 h-5 animate-spin text-[#FF6B00]" />
+            <span>Signing in...</span>
+          </>
         ) : (
-          <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
-            <path
-              fill="#4285F4"
-              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-            />
-            <path
-              fill="#34A853"
-              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-            />
-            <path
-              fill="#EA4335"
-              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-            />
-          </svg>
+          <>
+            <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+              />
+            </svg>
+            <span>{label}</span>
+          </>
         )}
-        <span>{loading ? 'Opening Google Account...' : label}</span>
       </button>
 
-      {/* Outside error notice */}
+      {/* Outside Error Notice */}
       {error && !showModal && (
-        <div className="flex items-center justify-center gap-1.5 text-xs text-red-600 font-semibold text-center mt-2 animate-fadeIn bg-red-50 p-2.5 rounded-xl border border-red-200">
+        <div className="flex items-center justify-center gap-1.5 text-xs text-red-600 font-semibold text-center mt-2 p-2.5 rounded-xl bg-red-50 border border-red-200 animate-fadeIn">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Account Selection Modal */}
+      {/* Google Sign-In Account Selector Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
           <div className="w-full max-w-md bg-white border border-slate-200 rounded-[28px] p-6 sm:p-7 shadow-2xl relative animate-scaleUp max-h-[92vh] overflow-y-auto">
@@ -243,7 +143,6 @@ export default function GoogleSignInButton({
               onClick={() => {
                 setShowModal(false);
                 setError('');
-                setModalReason('');
               }}
               className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition"
               aria-label="Close"
@@ -251,9 +150,9 @@ export default function GoogleSignInButton({
               <X className="w-5 h-5" />
             </button>
 
-            {/* Header */}
-            <div className="text-center mb-5">
-              <div className="w-12 h-12 mx-auto mb-2.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shadow-sm">
+            {/* Google Header */}
+            <div className="text-center mb-6">
+              <div className="w-12 h-12 mx-auto mb-2.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shadow-xs">
                 <svg className="w-6 h-6" viewBox="0 0 24 24">
                   <path
                     fill="#4285F4"
@@ -274,14 +173,14 @@ export default function GoogleSignInButton({
                 </svg>
               </div>
               <h3 className="text-xl font-black text-slate-900 tracking-tight">
-                Sign In with Google Account
+                Sign in with Google
               </h3>
-              <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                Authenticate with your Google credentials on <span className="text-[#FF6B00]">RVA Pro</span>
+              <p className="text-xs text-slate-500 font-semibold mt-1">
+                Choose or enter your Google account to log into <span className="text-[#FF6B00]">RVA Pro</span>
               </p>
             </div>
 
-            {/* Error banner inside modal */}
+            {/* Error Banner */}
             {error && (
               <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 font-semibold flex items-start gap-2 animate-fadeIn">
                 <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
@@ -289,135 +188,114 @@ export default function GoogleSignInButton({
               </div>
             )}
 
-            {/* Popup blocker notice */}
-            {modalReason && !error && (
-              <div className="mb-4 bg-orange-50/90 border border-orange-200/80 rounded-xl p-3 text-[11px] text-orange-900 font-medium leading-relaxed flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-[#FF6B00] flex-shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold block">Popup Notice:</span>
-                  <span>{modalReason}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Custom Google Account Input */}
-            <div className="mb-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4">
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Type Your Google / Gmail Account:
-              </label>
-              <div className="space-y-2 mb-3">
+            {/* Form to enter any Google/Gmail Account */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleGoogleSubmit();
+              }}
+              className="mb-5 bg-slate-50/80 border border-slate-200/90 rounded-2xl p-4 space-y-3"
+            >
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Your Google / Gmail Address:
+                </label>
                 <div className="relative">
                   <input
                     ref={emailInputRef}
                     type="email"
                     placeholder="yourname@gmail.com"
-                    value={customEmail}
+                    value={email}
                     onChange={(e) => {
-                      setCustomEmail(e.target.value);
+                      setEmail(e.target.value);
                       if (error) setError('');
                     }}
-                    className="w-full h-11 pl-9 pr-3 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:ring-1 focus:ring-[#FF6B00] focus:border-[#FF6B00] bg-white"
+                    required
+                    className="w-full h-11 pl-9 pr-3 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:ring-1 focus:ring-[#FF6B00] focus:border-[#FF6B00] bg-white transition"
                   />
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Your Full Name:
+                </label>
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="Your Full Name (optional)"
-                    value={customName}
-                    onChange={(e) => setCustomName(e.target.value)}
-                    className="w-full h-11 pl-9 pr-3 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:ring-1 focus:ring-[#FF6B00] focus:border-[#FF6B00] bg-white"
+                    placeholder="Your Name (e.g. Varun Mittapalli)"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full h-11 pl-9 pr-3 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 outline-none focus:ring-1 focus:ring-[#FF6B00] focus:border-[#FF6B00] bg-white transition"
                   />
                   <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
 
-              {/* Sign in with this Google account button - always clickable! */}
+              {/* Submit Button */}
               <button
-                type="button"
-                onClick={() => handleManualAccountLogin(customEmail, customName)}
+                type="submit"
                 disabled={loading}
-                className="w-full h-11 bg-[#FF6B00] hover:bg-[#e05e00] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow-sm disabled:opacity-60"
+                className="w-full h-11 bg-[#FF6B00] hover:bg-[#e05e00] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow-sm hover:shadow-orange-500/20 active:scale-[0.99] disabled:opacity-60"
               >
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Signing in...</span>
+                    <span>Signing in with Google...</span>
                   </>
                 ) : (
                   <>
-                    <span>Sign In with This Google Account</span>
+                    <span>Continue with Google Account</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
-            </div>
+            </form>
 
             {/* Quick 1-Click Role Profiles */}
-            <div className="mb-4">
+            <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 pl-1">
                 Or 1-Click Demo Profiles:
               </label>
-              <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() =>
-                    handleManualAccountLogin(
-                      role === 'mechanic' ? 'mechanic.demo@rvapro.in' : 'owner.demo@rvapro.in',
-                      role === 'mechanic' ? 'Apex Pro Mechanic & Towing' : 'Vehicle Owner Demo'
+                    handleGoogleSubmit(
+                      role === 'mechanic' ? 'mechanic.demo@gmail.com' : 'driver.demo@gmail.com',
+                      role === 'mechanic' ? 'Apex Pro Mechanic & Tow' : 'Vehicle Driver Demo'
                     )
                   }
                   disabled={loading}
-                  className="w-full p-3 flex items-center justify-between border border-slate-200 hover:border-[#FF6B00] bg-white hover:bg-orange-50/40 rounded-xl transition text-left group disabled:opacity-50"
+                  className="p-3 bg-white hover:bg-orange-50/50 border border-slate-200 hover:border-orange-300 rounded-xl text-left transition group disabled:opacity-50"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-orange-100 text-[#FF6B00] font-black flex items-center justify-center text-xs">
-                      {role === 'mechanic' ? 'M' : 'O'}
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-[#FF6B00] transition">
-                        {role === 'mechanic' ? 'Demo Mechanic & Tow Partner' : 'Demo Vehicle Owner'}
-                      </h4>
-                      <p className="text-[10px] text-slate-400 font-medium">
-                        {role === 'mechanic' ? 'mechanic.demo@rvapro.in' : 'owner.demo@rvapro.in'}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-[11px] font-bold text-[#FF6B00]">Select →</span>
+                  <span className="block text-[11px] font-bold text-[#FF6B00]">
+                    {role === 'mechanic' ? 'Mechanic & Tow' : 'Vehicle Owner'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium truncate block">
+                    {role === 'mechanic' ? 'mechanic.demo@gmail.com' : 'driver.demo@gmail.com'}
+                  </span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    handleManualAccountLogin('fleet.manager@rvapro.in', 'Fleet Dispatcher Demo')
-                  }
+                  onClick={() => handleGoogleSubmit('fleet.demo@gmail.com', 'Fleet Dispatcher Demo')}
                   disabled={loading}
-                  className="w-full p-3 flex items-center justify-between border border-slate-200 hover:border-slate-400 bg-white hover:bg-slate-50 rounded-xl transition text-left group disabled:opacity-50"
+                  className="p-3 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-left transition group disabled:opacity-50"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-slate-800 text-white font-black flex items-center justify-center text-xs">
-                      F
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">Fleet Dispatcher Demo</h4>
-                      <p className="text-[10px] text-slate-400 font-medium">fleet.manager@rvapro.in</p>
-                    </div>
-                  </div>
-                  <span className="text-[11px] font-bold text-slate-500 group-hover:text-slate-800">Select →</span>
+                  <span className="block text-[11px] font-bold text-slate-800">Fleet Dispatcher</span>
+                  <span className="text-[10px] text-slate-400 font-medium truncate block">
+                    fleet.demo@gmail.com
+                  </span>
                 </button>
               </div>
             </div>
 
-            {/* Direct Google redirect link */}
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-              <span>Bypass browser popup blocker:</span>
-              <button
-                type="button"
-                onClick={handleRedirectLogin}
-                className="text-[#FF6B00] font-bold hover:underline flex items-center gap-1"
-              >
-                Full-Page Redirect <ExternalLink className="w-3 h-3" />
-              </button>
+            {/* Security note */}
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-center gap-1.5 text-[11px] text-slate-400 font-medium">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Direct Google Account Authentication Active</span>
             </div>
           </div>
         </div>
