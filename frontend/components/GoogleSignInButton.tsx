@@ -3,7 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { X, Check, Mail, User, Shield, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
+import {
+  getFirebase,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+} from '@/lib/firebase';
+import { X, Check, Mail, User, Shield, Sparkles, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
 
 interface GoogleSignInButtonProps {
   role?: string;
@@ -14,75 +20,121 @@ interface GoogleSignInButtonProps {
 export default function GoogleSignInButton({
   role = 'user',
   className = '',
-  label = 'Sign in with Google',
+  label = 'Continue with Google',
 }: GoogleSignInButtonProps) {
   const { googleLogin } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [modalReason, setModalReason] = useState('');
   const [customEmail, setCustomEmail] = useState('');
   const [customName, setCustomName] = useState('');
 
-  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-
-  // Initialize official Google Identity Services if client ID is configured
+  // Handle return from full-page redirect if signInWithRedirect was used
   useEffect(() => {
-    if (!clientId) return;
-
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    document.body.appendChild(script);
-
-    script.onload = () => {
-      if (window.google?.accounts?.id) {
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: async (response: { credential: string }) => {
-            setLoading(true);
-            setError('');
-            try {
-              await googleLogin({ credential: response.credential, role });
-              router.push('/dashboard');
-            } catch (err) {
-              setError(err instanceof Error ? err.message : 'Google sign-in failed');
-            } finally {
-              setLoading(false);
-            }
-          },
-        });
+    const handleRedirectResult = async () => {
+      try {
+        const { auth } = getFirebase();
+        if (!auth) return;
+        const result = await getRedirectResult(auth);
+        if (result?.user) {
+          setLoading(true);
+          const user = result.user;
+          const idToken = await user.getIdToken();
+          await googleLogin({
+            email: user.email || '',
+            name: user.displayName || user.email?.split('@')[0] || 'Google User',
+            credential: idToken,
+            role,
+          });
+          router.push('/dashboard');
+        }
+      } catch (err: any) {
+        console.warn('Redirect auth result error:', err);
+      } finally {
+        setLoading(false);
       }
     };
 
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
-  }, [clientId, googleLogin, role, router]);
+    handleRedirectResult();
+  }, [googleLogin, role, router]);
 
-  const handleClick = () => {
-    if (clientId && window.google?.accounts?.id) {
-      window.google.accounts.id.prompt();
-    } else {
+  const handleClick = async () => {
+    setLoading(true);
+    setError('');
+    setModalReason('');
+
+    try {
+      const { auth, googleProvider } = getFirebase();
+
+      if (!auth || !googleProvider) {
+        throw new Error('Firebase Auth is not available.');
+      }
+
+      console.log('Attempting Firebase Google Sign-In popup...');
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      const idToken = await user.getIdToken();
+
+      console.log('Firebase user authenticated successfully:', user.email);
+
+      await googleLogin({
+        email: user.email || '',
+        name: user.displayName || user.email?.split('@')[0] || 'Google User',
+        credential: idToken,
+        role,
+      });
+
+      router.push('/dashboard');
+    } catch (err: any) {
+      console.warn('Google sign-in popup result:', err);
+
+      let reason = 'Google popup was closed or blocked by your browser.';
+      if (err?.code === 'auth/popup-blocked') {
+        reason = 'Popup window was blocked by your browser (e.g. Brave Shields / Popup Blocker).';
+      } else if (err?.code === 'auth/operation-not-allowed') {
+        reason = 'Google provider is not enabled in Firebase Console -> Authentication -> Sign-in method.';
+      } else if (err?.code === 'auth/unauthorized-domain') {
+        reason = 'Current domain is not listed under Authorized domains in Firebase Console.';
+      } else if (err?.message) {
+        reason = err.message;
+      }
+
+      setModalReason(reason);
+      setError(reason);
+      // Always open the account selector modal so user can proceed seamlessly!
       setShowModal(true);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleAccountSelect = async (email: string, name: string) => {
+  const handleRedirectLogin = async () => {
+    setLoading(true);
+    try {
+      const { auth, googleProvider } = getFirebase();
+      if (!auth || !googleProvider) return;
+      await signInWithRedirect(auth, googleProvider);
+    } catch (err: any) {
+      setError(err?.message || 'Redirect failed');
+      setLoading(false);
+    }
+  };
+
+  const handleManualAccountLogin = async (email: string, name: string) => {
     setLoading(true);
     setError('');
     try {
+      console.log('Authenticating with backend using account:', email);
       await googleLogin({ email, name, role });
       setShowModal(false);
       router.push('/dashboard');
     } catch (err: any) {
-      console.error('Google sign-in error:', err);
+      console.error('Login error:', err);
       const errorMsg =
         err?.message?.includes('fetch failed') || err?.message?.includes('Failed to fetch')
-          ? 'Backend server is not running on http://localhost:5000. Please start the backend (npm start in backend folder).'
+          ? 'Backend server is unreachable on http://localhost:5000. Please ensure the backend is running.'
           : err instanceof Error
             ? err.message
             : 'Authentication failed';
@@ -122,7 +174,7 @@ export default function GoogleSignInButton({
             />
           </svg>
         )}
-        <span>{loading ? 'Signing in with Google...' : label}</span>
+        <span>{loading ? 'Opening Google Account...' : label}</span>
       </button>
 
       {error && !showModal && (
@@ -132,7 +184,7 @@ export default function GoogleSignInButton({
         </div>
       )}
 
-      {/* Google Account Selector Modal */}
+      {/* Account Selection Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fadeIn">
           <div className="w-full max-w-md bg-white border border-slate-200 rounded-[28px] p-6 sm:p-7 shadow-2xl relative animate-scaleUp">
@@ -172,50 +224,61 @@ export default function GoogleSignInButton({
                 </svg>
               </div>
               <h3 className="text-xl font-black text-slate-900 tracking-tight">
-                Sign in with Google
+                Google Authentication
               </h3>
               <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                Choose an account to continue to <span className="text-[#FF6B00]">RVA Pro</span>
+                Choose your Google account to log into <span className="text-[#FF6B00]">RVA Pro</span>
               </p>
             </div>
 
-            {error && (
-              <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 font-semibold flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-                <span>{error}</span>
+            {/* Error or Notice box */}
+            {modalReason && (
+              <div className="mb-4 bg-orange-50/80 border border-orange-200/80 rounded-xl p-3 text-[11px] text-orange-900 font-medium leading-relaxed flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-[#FF6B00] flex-shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold block">Notice:</span>
+                  <span>{modalReason}</span>
+                </div>
               </div>
             )}
 
-            {/* Quick 1-Click Accounts */}
+            {/* Direct 1-Click Select Options */}
             <div className="space-y-2 mb-4">
               <button
                 type="button"
-                onClick={() => handleAccountSelect('varun@gmail.com', 'Varun Mittapalli')}
+                onClick={() =>
+                  handleManualAccountLogin(
+                    role === 'mechanic' ? 'mechanic.demo@rvapro.in' : 'owner.demo@rvapro.in',
+                    role === 'mechanic' ? 'Apex Pro Mechanic & Towing' : 'Vehicle Owner Demo'
+                  )
+                }
                 disabled={loading}
                 className="w-full p-3.5 flex items-center justify-between border-2 border-orange-200/80 hover:border-[#FF6B00] bg-orange-50/30 hover:bg-orange-50/70 rounded-2xl transition text-left group disabled:opacity-50"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#FF6B00] to-amber-500 text-white font-black flex items-center justify-center text-sm shadow-sm">
-                    V
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#FF6B00] to-amber-500 text-white font-black flex items-center justify-center text-xs shadow-sm">
+                    {role === 'mechanic' ? 'M' : 'O'}
                   </div>
                   <div>
                     <h4 className="text-xs font-black text-slate-900 group-hover:text-[#FF6B00] transition">
-                      Continue as Varun Mittapalli
+                      {role === 'mechanic' ? 'Demo Mechanic & Tow Partner' : 'Demo Vehicle Owner'}
                     </h4>
-                    <p className="text-[11px] text-slate-500 font-semibold">varun@gmail.com</p>
+                    <p className="text-[11px] text-slate-500 font-semibold">
+                      {role === 'mechanic' ? 'mechanic.demo@rvapro.in' : 'owner.demo@rvapro.in'}
+                    </p>
                   </div>
                 </div>
                 <span className="text-xs font-extrabold text-[#FF6B00] bg-white px-2.5 py-1 rounded-lg border border-orange-200 shadow-xs">
-                  Sign In →
+                  Continue →
                 </span>
               </button>
 
               <button
                 type="button"
                 onClick={() =>
-                  handleAccountSelect(
-                    role === 'mechanic' ? 'apex.towing@gmail.com' : 'rahul.driver@gmail.com',
-                    role === 'mechanic' ? 'Apex Towing & Repair' : 'Rahul Sharma'
+                  handleManualAccountLogin(
+                    'fleet.manager@rvapro.in',
+                    'Fleet Dispatcher Demo'
                   )
                 }
                 disabled={loading}
@@ -223,14 +286,14 @@ export default function GoogleSignInButton({
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-slate-800 text-white font-black flex items-center justify-center text-xs shadow-sm">
-                    {role === 'mechanic' ? 'A' : 'R'}
+                    F
                   </div>
                   <div>
                     <h4 className="text-xs font-black text-slate-900">
-                      {role === 'mechanic' ? 'Apex Towing & Repair' : 'Rahul Sharma'}
+                      Fleet Dispatcher Demo
                     </h4>
                     <p className="text-[11px] text-slate-400 font-medium">
-                      {role === 'mechanic' ? 'apex.towing@gmail.com' : 'rahul.driver@gmail.com'}
+                      fleet.manager@rvapro.in
                     </p>
                   </div>
                 </div>
@@ -243,7 +306,7 @@ export default function GoogleSignInButton({
             {/* Custom Google Account Input */}
             <div className="pt-3 border-t border-slate-100">
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                Or Type Any Gmail Address:
+                Or Type Any Google / Gmail Address:
               </label>
               <div className="space-y-1.5 mb-2.5">
                 <input
@@ -268,7 +331,7 @@ export default function GoogleSignInButton({
                     setError('Please enter your Gmail address');
                     return;
                   }
-                  handleAccountSelect(
+                  handleManualAccountLogin(
                     customEmail,
                     customName || customEmail.split('@')[0]
                   );
@@ -279,24 +342,21 @@ export default function GoogleSignInButton({
                 {loading ? 'Authenticating...' : 'Sign In with This Account →'}
               </button>
             </div>
+
+            {/* Redirect alternative */}
+            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+              <span>Bypass popup blockers?</span>
+              <button
+                type="button"
+                onClick={handleRedirectLogin}
+                className="text-[#FF6B00] font-bold hover:underline flex items-center gap-1"
+              >
+                Use Full-Page Redirect <ExternalLink className="w-3 h-3" />
+              </button>
+            </div>
           </div>
         </div>
       )}
     </>
   );
-}
-
-// Global declaration for window.google
-declare global {
-  interface Window {
-    google?: {
-      accounts?: {
-        id?: {
-          initialize: (options: any) => void;
-          prompt: () => void;
-          renderButton: (parent: HTMLElement, options: any) => void;
-        };
-      };
-    };
-  }
 }

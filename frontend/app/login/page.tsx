@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { user, login, logout } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -79,6 +79,39 @@ export default function LoginPage() {
           <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-tight mb-2">Welcome Back</h2>
           <p className="text-sm text-slate-500 font-semibold">Sign in to access emergency roadside assistance.</p>
         </div>
+
+        {/* If user is already logged in, show status & option to logout / switch account */}
+        {user && (
+          <div className="mb-6 p-4 rounded-2xl bg-orange-50 border border-orange-200/80 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fadeIn">
+            <div>
+              <p className="font-bold text-slate-800">
+                Currently signed in as: <span className="text-[#FF6B00]">{user.name}</span>
+              </p>
+              <p className="text-slate-500 text-[11px] mt-0.5">{user.email}</p>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Link
+                href={
+                  user.role === 'mechanic'
+                    ? '/dashboard/mechanic'
+                    : user.role === 'admin'
+                      ? '/dashboard/admin'
+                      : '/dashboard/user'
+                }
+                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs transition text-center flex-1 sm:flex-initial"
+              >
+                Dashboard
+              </Link>
+              <button
+                type="button"
+                onClick={() => logout()}
+                className="px-3 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition text-center flex-1 sm:flex-initial shadow-sm"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">

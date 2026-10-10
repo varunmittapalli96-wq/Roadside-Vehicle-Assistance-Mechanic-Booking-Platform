@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 
 function RegisterForm() {
-  const { register } = useAuth();
+  const { user, register, logout } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -300,6 +300,25 @@ function RegisterForm() {
             Join India&apos;s fastest emergency roadside & mechanic booking network.
           </p>
         </div>
+
+        {/* If user is already logged in, show status & option to logout */}
+        {user && (
+          <div className="mb-6 p-4 rounded-2xl bg-orange-50 border border-orange-200/80 text-xs flex items-center justify-between gap-3 animate-fadeIn">
+            <div>
+              <p className="font-bold text-slate-800">
+                Logged in as <span className="text-[#FF6B00]">{user.name}</span> ({user.email})
+              </p>
+              <p className="text-slate-500 mt-0.5">Want to register a new account instead?</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => logout()}
+              className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition flex-shrink-0 shadow-sm"
+            >
+              Sign Out
+            </button>
+          </div>
+        )}
 
         {/* Account Type Segmented Controls (Towing Merged into Mechanic!) */}
         <div className="mb-6">
