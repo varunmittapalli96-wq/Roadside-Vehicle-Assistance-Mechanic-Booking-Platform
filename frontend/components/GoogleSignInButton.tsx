@@ -23,7 +23,6 @@ export default function GoogleSignInButton({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const googleBtnContainerRef = useRef<HTMLDivElement>(null);
   const tokenClientRef = useRef<any>(null);
 
   // Initialize Google Identity Services (GSI)
@@ -99,19 +98,6 @@ export default function GoogleSignInButton({
             },
             auto_select: false,
           });
-
-          // Render official Google button inside container if available
-          if (googleBtnContainerRef.current) {
-            (window as any).google.accounts.id.renderButton(googleBtnContainerRef.current, {
-              type: 'standard',
-              theme: 'outline',
-              size: 'large',
-              text: 'signin_with',
-              shape: 'pill',
-              width: 380,
-              logo_alignment: 'left',
-            });
-          }
         } catch (e) {
           console.warn('Error initializing Google ID services:', e);
         }
@@ -264,9 +250,6 @@ export default function GoogleSignInButton({
           </>
         )}
       </button>
-
-      {/* Official Google Button Render Target (Rendered if available) */}
-      <div ref={googleBtnContainerRef} className="flex justify-center w-full empty:hidden" />
 
       {/* Inline Error Notice */}
       {error && (
