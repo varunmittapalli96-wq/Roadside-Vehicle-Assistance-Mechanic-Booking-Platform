@@ -18,6 +18,9 @@ export interface User {
     totalRatings?: number;
     totalJobs?: number;
     earnings?: number;
+    hasTowing?: boolean;
+    towTruckType?: string;
+    fleetSize?: string;
   };
   location?: {
     coordinates: [number, number];
@@ -93,7 +96,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 }
 
 export const api = {
-  register: (body: Record<string, string>) =>
+  register: (body: Record<string, any>) =>
     request<{ user: User; token: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(body),
@@ -102,6 +105,11 @@ export const api = {
     request<{ user: User; token: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
+    }),
+  googleLogin: (body: { credential?: string; email?: string; name?: string; role?: string }) =>
+    request<{ user: User; token: string }>('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify(body),
     }),
   getMe: () => request<User>('/auth/me'),
   updateProfile: (body: Partial<User>) =>

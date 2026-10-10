@@ -136,7 +136,7 @@ export default function AdminUsersPage() {
                         </span>
                       ) : u.role === 'mechanic' ? (
                         <span className="bg-orange-50 text-[#FF6B00] text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-orange-100">
-                          Mechanic
+                          {u.profile?.hasTowing ? 'Mechanic & Tow' : 'Mechanic'}
                         </span>
                       ) : (
                         <span className="bg-blue-50 text-blue-700 text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-blue-100">

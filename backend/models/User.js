@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true },
-    phone: { type: String, required: true },
+    phone: { type: String, default: '' },
     password: { type: String, required: true, minlength: 6 },
     role: {
       type: String,
@@ -31,6 +31,9 @@ const userSchema = new mongoose.Schema(
       totalRatings: { type: Number, default: 0 },
       totalJobs: { type: Number, default: 0 },
       earnings: { type: Number, default: 0 },
+      hasTowing: { type: Boolean, default: false },
+      towTruckType: { type: String, default: '' },
+      fleetSize: { type: String, default: '' },
     },
     location: {
       type: { type: String, enum: ['Point'], default: 'Point' },

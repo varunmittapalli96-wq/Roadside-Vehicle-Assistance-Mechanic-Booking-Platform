@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 import {
   Wrench,
   Eye,
@@ -159,6 +160,17 @@ export default function LoginPage() {
             )}
           </button>
         </form>
+
+        {/* OR Divider */}
+        <div className="relative my-6 flex items-center justify-center">
+          <div className="absolute inset-x-0 h-[1px] bg-slate-100" />
+          <span className="relative z-10 bg-white px-4 text-xs font-black text-slate-400 uppercase tracking-widest">
+            OR
+          </span>
+        </div>
+
+        {/* Google Sign In Button */}
+        <GoogleSignInButton label="Sign in with Google" />
 
         {/* Trust elements list */}
         <div className="mt-8 pt-6 border-t border-slate-100 space-y-2.5">

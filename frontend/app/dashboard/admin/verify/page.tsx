@@ -16,6 +16,8 @@ import {
   User as UserIcon,
   CheckCircle2,
   AlertTriangle,
+  Truck,
+  MapPin,
 } from 'lucide-react';
 
 const navItems = [
@@ -115,11 +117,14 @@ export default function VerifyPartnersPage() {
                         </span>
                       </div>
                       
-                      {/* Contacts */}
+                      {/* Contacts & Location */}
                       <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-slate-500 font-bold">
                         <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-slate-400" /> {m.email}</span>
                         <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-slate-400" /> {m.phone}</span>
                         <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-slate-400" /> License: {m.profile?.licenseNumber}</span>
+                        {m.location?.address && (
+                          <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-slate-400" /> {m.location.address}</span>
+                        )}
                       </div>
 
                       {m.profile?.bio && (
@@ -128,19 +133,23 @@ export default function VerifyPartnersPage() {
                         </p>
                       )}
 
-                      {/* Services list */}
-                      {m.profile?.services && m.profile.services.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pt-1.5">
-                          {m.profile.services.map((s) => (
-                            <span
-                              key={s}
-                              className="bg-orange-500/5 text-[#FF6B00] text-[9px] font-black uppercase px-2.5 py-1 rounded-full border border-orange-500/10"
-                            >
-                              {s.replace(/_/g, ' ')}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      {/* Services list & Towing capabilities */}
+                      <div className="flex flex-wrap gap-1.5 pt-1.5">
+                        {m.profile?.hasTowing && (
+                          <span className="bg-amber-500/10 text-amber-700 text-[9px] font-black uppercase px-2.5 py-1 rounded-full border border-amber-500/20 flex items-center gap-1">
+                            <Truck className="w-3 h-3 text-amber-600" />
+                            {m.profile.towTruckType ? m.profile.towTruckType.replace(/_/g, ' ') : 'Towing & Recovery'}
+                          </span>
+                        )}
+                        {m.profile?.services && m.profile.services.map((s) => (
+                          <span
+                            key={s}
+                            className="bg-orange-500/5 text-[#FF6B00] text-[9px] font-black uppercase px-2.5 py-1 rounded-full border border-orange-500/10"
+                          >
+                            {s.replace(/_/g, ' ')}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
