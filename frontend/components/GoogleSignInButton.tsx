@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { Loader2, AlertCircle, Check } from 'lucide-react';
+import { getFirebase, signInWithPopup } from '@/lib/firebase';
+import { Loader2, AlertCircle } from 'lucide-react';
 
 const GOOGLE_CLIENT_ID = '973855185047-cgv3qmaj0fcki0p9g7q04nu46v3srlon.apps.googleusercontent.com';
 
@@ -22,115 +23,222 @@ export default function GoogleSignInButton({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const hasGsiInitRef = useRef(false);
+  const googleBtnContainerRef = useRef<HTMLDivElement>(null);
+  const tokenClientRef = useRef<any>(null);
 
-  // Automatically identified primary Google account
-  const identifiedEmail = 'varunmittapalli96@gmail.com';
-  const identifiedName = 'Varun Mittapalli';
-
-  // 1. Initialize Google Identity Services (GSI) One-Tap for native browser auto-detection
+  // Initialize Google Identity Services (GSI)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const handleCredentialResponse = async (response: any) => {
-      if (!response?.credential) return;
-      setLoading(true);
-      setError('');
-      try {
-        await googleLogin({
-          credential: response.credential,
-          role,
-        });
-        router.push('/dashboard');
-      } catch (err: any) {
-        console.error('Google One-Tap login error:', err);
-        setError(err?.message || 'Google One-Tap authentication failed');
-        setLoading(false);
+    const setupGoogleServices = () => {
+      // 1. Setup OAuth 2.0 Token Client for opening the Google Account Chooser pop-out window
+      if ((window as any).google?.accounts?.oauth2) {
+        try {
+          tokenClientRef.current = (window as any).google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: 'email profile openid',
+            prompt: 'select_account',
+            callback: async (tokenResponse: any) => {
+              if (tokenResponse?.error) {
+                console.warn('Google pop-out response error:', tokenResponse);
+                setLoading(false);
+                if (tokenResponse.error !== 'access_denied') {
+                  setError(tokenResponse.error_description || tokenResponse.error);
+                }
+                return;
+              }
+
+              if (tokenResponse?.access_token) {
+                try {
+                  const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                  });
+                  const profile = await res.json();
+                  if (profile?.email) {
+                    await googleLogin({
+                      email: profile.email,
+                      name: profile.name || profile.email.split('@')[0],
+                      role,
+                    });
+                    router.push('/dashboard');
+                    return;
+                  }
+                } catch (fetchErr: any) {
+                  console.error('Failed to fetch userinfo from Google:', fetchErr);
+                  setError('Failed to fetch Google profile. Please try again.');
+                  setLoading(false);
+                }
+              }
+            },
+          });
+        } catch (e) {
+          console.warn('Error initializing OAuth2 Token Client:', e);
+        }
+      }
+
+      // 2. Setup Google Identity Services One-Tap / Credential response
+      if ((window as any).google?.accounts?.id) {
+        try {
+          (window as any).google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: async (response: any) => {
+              if (!response?.credential) return;
+              setLoading(true);
+              setError('');
+              try {
+                await googleLogin({
+                  credential: response.credential,
+                  role,
+                });
+                router.push('/dashboard');
+              } catch (err: any) {
+                console.error('Google credential authentication failed:', err);
+                setError(err?.message || 'Google authentication failed');
+                setLoading(false);
+              }
+            },
+            auto_select: false,
+          });
+
+          // Render official Google button inside container if available
+          if (googleBtnContainerRef.current) {
+            (window as any).google.accounts.id.renderButton(googleBtnContainerRef.current, {
+              type: 'standard',
+              theme: 'outline',
+              size: 'large',
+              text: 'signin_with',
+              shape: 'pill',
+              width: 380,
+              logo_alignment: 'left',
+            });
+          }
+        } catch (e) {
+          console.warn('Error initializing Google ID services:', e);
+        }
       }
     };
 
-    const initGsi = () => {
-      if (hasGsiInitRef.current || !(window as any).google?.accounts?.id) return;
-      hasGsiInitRef.current = true;
-      try {
-        (window as any).google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleCredentialResponse,
-          auto_select: true,
-          cancel_on_tap_outside: true,
-        });
-        (window as any).google.accounts.id.prompt();
-      } catch (err) {
-        console.warn('GSI auto-detection notice:', err);
-      }
-    };
-
-    if ((window as any).google?.accounts?.id) {
-      initGsi();
+    if ((window as any).google?.accounts) {
+      setupGoogleServices();
     } else {
-      const existingScript = document.getElementById('google-gsi-client');
-      if (!existingScript) {
-        const script = document.createElement('script');
-        script.id = 'google-gsi-client';
-        script.src = 'https://accounts.google.com/gsi/client';
-        script.async = true;
-        script.defer = true;
-        script.onload = () => initGsi();
-        document.head.appendChild(script);
+      const script = document.getElementById('google-gsi-client');
+      if (!script) {
+        const newScript = document.createElement('script');
+        newScript.id = 'google-gsi-client';
+        newScript.src = 'https://accounts.google.com/gsi/client';
+        newScript.async = true;
+        newScript.defer = true;
+        newScript.onload = () => setupGoogleServices();
+        document.head.appendChild(newScript);
       } else {
-        existingScript.addEventListener('load', initGsi);
+        script.addEventListener('load', setupGoogleServices);
       }
     }
   }, [googleLogin, role, router]);
 
-  // Direct 1-Click Google Sign-In with automatically identified Google account (NO MODAL!)
-  const handleDirectGoogleLogin = async () => {
+  // Handle click: Trigger Google pop-out window with list of accounts
+  const handleGooglePopOutLogin = async () => {
     setLoading(true);
     setError('');
 
-    // Trigger Google One-Tap if available
-    if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
+    // Method 1: Try Firebase signInWithPopup (uses authorized firebaseapp.com domain)
+    try {
+      console.log('Attempting Firebase Google sign-in pop-out...');
+      const { auth, googleProvider } = getFirebase();
+      if (auth && googleProvider) {
+        googleProvider.setCustomParameters({ prompt: 'select_account' });
+        const result = await signInWithPopup(auth, googleProvider);
+        const user = result.user;
+        const idToken = await user.getIdToken();
+        await googleLogin({
+          email: user.email || '',
+          name: user.displayName || user.email?.split('@')[0] || 'Google User',
+          credential: idToken,
+          role,
+        });
+        router.push('/dashboard');
+        return;
+      }
+    } catch (firebaseErr: any) {
+      console.warn('Firebase popup notice:', firebaseErr);
+      if (firebaseErr?.code === 'auth/popup-closed-by-user') {
+        setLoading(false);
+        return;
+      }
+      // If Firebase failed, fallback to GSI tokenClient
+    }
+
+    // Method 2: Google Identity Services OAuth Token Client pop-out with prompt: 'select_account'
+    if (tokenClientRef.current) {
       try {
-        (window as any).google.accounts.id.prompt();
-      } catch (e) {
-        console.warn('One Tap prompt notice:', e);
+        console.log('Opening Google accounts pop-out window via GSI...');
+        tokenClientRef.current.requestAccessToken({ prompt: 'select_account' });
+        return;
+      } catch (err) {
+        console.warn('Failed to open GSI tokenClient pop-out:', err);
       }
     }
 
-    try {
-      console.log('Directly authenticating identified Google account:', identifiedEmail);
-      await googleLogin({
-        email: identifiedEmail,
-        name: identifiedName,
-        role,
-      });
-      router.push('/dashboard');
-    } catch (err: any) {
-      console.error('Google authentication error:', err);
-      const msg =
-        err?.message?.includes('Failed to fetch') || err?.message?.includes('fetch failed')
-          ? 'Cannot reach backend on http://localhost:5000. Please ensure the backend is running.'
-          : err instanceof Error
-            ? err.message
-            : 'Authentication failed. Please try again.';
-      setError(msg);
-      setLoading(false);
+    if (typeof window !== 'undefined' && (window as any).google?.accounts?.oauth2) {
+      try {
+        const client = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: 'email profile openid',
+          prompt: 'select_account',
+          callback: async (tokenResponse: any) => {
+            if (tokenResponse?.error) {
+              setLoading(false);
+              if (tokenResponse.error !== 'access_denied') {
+                setError(tokenResponse.error_description || tokenResponse.error);
+              }
+              return;
+            }
+            if (tokenResponse?.access_token) {
+              try {
+                const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                });
+                const profile = await res.json();
+                if (profile?.email) {
+                  await googleLogin({
+                    email: profile.email,
+                    name: profile.name || profile.email.split('@')[0],
+                    role,
+                  });
+                  router.push('/dashboard');
+                }
+              } catch (err: any) {
+                setError('Failed to fetch Google profile.');
+                setLoading(false);
+              }
+            }
+          },
+        });
+        tokenClientRef.current = client;
+        client.requestAccessToken({ prompt: 'select_account' });
+        return;
+      } catch (e) {
+        console.warn('OAuth2 client initialization notice:', e);
+      }
     }
+
+    setError('Could not open Google pop-out window. Please check your browser popup settings.');
+    setLoading(false);
   };
 
   return (
     <div className={`w-full space-y-2 ${className}`}>
-      {/* 1-Click Direct Google Sign-In Button (NO POPUP MODAL!) */}
+      {/* Google Pop-Out Account Chooser Button */}
       <button
         type="button"
-        onClick={handleDirectGoogleLogin}
+        onClick={handleGooglePopOutLogin}
         disabled={loading}
-        className="w-full h-[52px] bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 rounded-[18px] font-bold text-sm flex items-center justify-center gap-3 shadow-sm hover:border-slate-300 transition-all duration-200 active:scale-[0.99] disabled:opacity-60"
+        className="w-full h-[52px] bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 rounded-[18px] font-bold text-sm flex items-center justify-center gap-3 shadow-sm hover:border-slate-300 transition-all duration-200 active:scale-[0.99] disabled:opacity-60 cursor-pointer"
       >
         {loading ? (
           <>
             <Loader2 className="w-5 h-5 animate-spin text-[#FF6B00]" />
-            <span>Signing in as {identifiedName}...</span>
+            <span>Connecting to Google...</span>
           </>
         ) : (
           <>
@@ -157,15 +265,10 @@ export default function GoogleSignInButton({
         )}
       </button>
 
-      {/* Identified Account Badge Indicator */}
-      <div className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500">
-        <span className="inline-flex items-center gap-1 text-emerald-600 font-bold">
-          <Check className="w-3.5 h-3.5" /> Auto-identified:
-        </span>
-        <span className="text-slate-700">{identifiedEmail}</span>
-      </div>
+      {/* Official Google Button Render Target (Rendered if available) */}
+      <div ref={googleBtnContainerRef} className="flex justify-center w-full empty:hidden" />
 
-      {/* Inline Error Notice if needed */}
+      {/* Inline Error Notice */}
       {error && (
         <div className="flex items-center justify-center gap-1.5 text-xs text-red-600 font-semibold text-center mt-2 p-2.5 rounded-xl bg-red-50 border border-red-200 animate-fadeIn">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
